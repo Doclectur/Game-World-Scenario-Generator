@@ -1,0 +1,5 @@
+{
+  "name": "Game World Scenario Generator",
+  "description": "A generative tool that guides a user through a series of branching choices to collaboratively create a unique game world scenario with an AI. The final output is a detailed JSON object.",
+  "requestFramePermissions": []
+}
