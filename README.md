@@ -18,9 +18,3 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gUjbHvKFj8ZXOqrjXyK0F8
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
-
-Alternatively this app allows for a Mistral api Key so you can navigate to: [mistral.ai](https://console.mistral.ai/) sign up and select the free account options for your plan, then in the La Plateforme console you can create an API key, that key can be used in the advanced cog option available on the first page when launching the app <img width="3792" height="1452" alt="image" src="https://github.com/user-attachments/assets/50f0c6d9-143e-48eb-a277-95af6ce4c337" />
-
-<img width="1723" height="763" alt="image" src="https://github.com/user-attachments/assets/4ceb8c1a-a304-42c9-8257-0e86686db458" />
-
-<img width="1697" height="1298" alt="image" src="https://github.com/user-attachments/assets/bc55045f-640d-424a-a87a-ef7a82422b34" />

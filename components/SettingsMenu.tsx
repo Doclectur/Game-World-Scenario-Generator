@@ -7,11 +7,21 @@ interface SettingsMenuProps {
 
 const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
   const [mistralApiKey, setMistralApiKey] = useState('');
+  const [stablehordeApiKey, setStablehordeApiKey] = useState('');
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('mistral_api_key');
-    if (savedKey) {
-      setMistralApiKey(savedKey);
+    const savedMistralKey = localStorage.getItem('mistral_api_key');
+    if (savedMistralKey) {
+      setMistralApiKey(savedMistralKey);
+    }
+    const savedStablehordeKey = localStorage.getItem('stablehorde_api_key');
+    if (savedStablehordeKey) {
+      setStablehordeApiKey(savedStablehordeKey);
+    }
+    const savedOpenaiKey = localStorage.getItem('openai_api_key');
+    if (savedOpenaiKey) {
+      setOpenaiApiKey(savedOpenaiKey);
     }
   }, []);
 
@@ -20,6 +30,18 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
       localStorage.setItem('mistral_api_key', mistralApiKey.trim());
     } else {
       localStorage.removeItem('mistral_api_key');
+    }
+
+    if (stablehordeApiKey.trim()) {
+      localStorage.setItem('stablehorde_api_key', stablehordeApiKey.trim());
+    } else {
+      localStorage.removeItem('stablehorde_api_key');
+    }
+
+    if (openaiApiKey.trim()) {
+      localStorage.setItem('openai_api_key', openaiApiKey.trim());
+    } else {
+      localStorage.removeItem('openai_api_key');
     }
     onClose();
   };
@@ -33,7 +55,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
       <div className="bg-stone-800 border border-amber-700/50 rounded-lg shadow-2xl shadow-amber-900/50 p-8 w-full max-w-md text-amber-100" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold text-amber-300 mb-4">Advanced Settings</h2>
         <p className="text-amber-200 mb-6">
-          Optionally provide your own Mistral API key. If provided, the application will use Mistral (La Plateforme) for generation. If left blank, it will revert to the default Gemini configuration.
+          Optionally provide your own API keys. If provided, the application will use the specified service for generation, falling back to the default Gemini configuration if left blank.
         </p>
         <div className="mb-6">
           <label htmlFor="mistral-key" className="block text-sm font-medium text-amber-400 mb-2">Mistral API Key</label>
@@ -43,6 +65,28 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
             value={mistralApiKey}
             onChange={(e) => setMistralApiKey(e.target.value)}
             placeholder="Enter your Mistral API key"
+            className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
+          />
+        </div>
+        <div className="mb-6">
+          <label htmlFor="stablehorde-key" className="block text-sm font-medium text-amber-400 mb-2">Stable Horde API Key</label>
+          <input
+            type="password"
+            id="stablehorde-key"
+            value={stablehordeApiKey}
+            onChange={(e) => setStablehordeApiKey(e.target.value)}
+            placeholder="Enter your Stable Horde key (e.g., '0000000000')"
+            className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
+          />
+        </div>
+        <div className="mb-6">
+          <label htmlFor="openai-key" className="block text-sm font-medium text-amber-400 mb-2">OpenAI API Key</label>
+          <input
+            type="password"
+            id="openai-key"
+            value={openaiApiKey}
+            onChange={(e) => setOpenaiApiKey(e.target.value)}
+            placeholder="Enter your OpenAI API key"
             className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
           />
         </div>

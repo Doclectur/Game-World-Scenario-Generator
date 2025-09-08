@@ -85,12 +85,27 @@ const rateLimiter = async () => {
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 const MISTRAL_MODEL = "mistral-large-latest";
 
+// --- STABLE HORDE CONFIG ---
+const STABLE_HORDE_API_URL = "https://stablehorde.net/api/v2/generate/text";
+
+// --- OPENAI CONFIG ---
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_MODEL = "gpt-4-turbo";
+
 // --- DYNAMIC DISPATCHER LOGIC ---
 export const getBranchingChoices = async (): Promise<BranchingQuestion[]> => {
     await rateLimiter();
     const mistralApiKey = typeof window !== 'undefined' ? localStorage.getItem('mistral_api_key') : null;
     if (mistralApiKey) {
         return getBranchingChoicesMistral(mistralApiKey);
+    }
+    const stablehordeApiKey = typeof window !== 'undefined' ? localStorage.getItem('stablehorde_api_key') : null;
+    if (stablehordeApiKey) {
+        return getBranchingChoicesStableHorde(stablehordeApiKey);
+    }
+    const openaiApiKey = typeof window !== 'undefined' ? localStorage.getItem('openai_api_key') : null;
+    if (openaiApiKey) {
+        return getBranchingChoicesOpenAI(openaiApiKey);
     }
     return getBranchingChoicesGemini();
 };
@@ -101,6 +116,14 @@ export const getRefinementChoices = async (pathHistory: PathHistoryItem[]): Prom
     if (mistralApiKey) {
         return getRefinementChoicesMistral(pathHistory, mistralApiKey);
     }
+    const stablehordeApiKey = typeof window !== 'undefined' ? localStorage.getItem('stablehorde_api_key') : null;
+    if (stablehordeApiKey) {
+        return getRefinementChoicesStableHorde(pathHistory, stablehordeApiKey);
+    }
+    const openaiApiKey = typeof window !== 'undefined' ? localStorage.getItem('openai_api_key') : null;
+    if (openaiApiKey) {
+        return getRefinementChoicesOpenAI(pathHistory, openaiApiKey);
+    }
     return getRefinementChoicesGemini(pathHistory);
 };
 
@@ -110,6 +133,14 @@ export const getScenarioJson = async (pathHistory: PathHistoryItem[]): Promise<R
     const mistralApiKey = typeof window !== 'undefined' ? localStorage.getItem('mistral_api_key') : null;
     if (mistralApiKey) {
         return getScenarioJsonMistral(pathHistory, mistralApiKey);
+    }
+    const stablehordeApiKey = typeof window !== 'undefined' ? localStorage.getItem('stablehorde_api_key') : null;
+    if (stablehordeApiKey) {
+        return getScenarioJsonStableHorde(pathHistory, stablehordeApiKey);
+    }
+    const openaiApiKey = typeof window !== 'undefined' ? localStorage.getItem('openai_api_key') : null;
+    if (openaiApiKey) {
+        return getScenarioJsonOpenAI(pathHistory, openaiApiKey);
     }
     return getScenarioJsonGemini(pathHistory);
 };
@@ -127,7 +158,10 @@ const getBranchingChoicesMistral = async (apiKey: string): Promise<BranchingQues
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({ model: MISTRAL_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
-        if (!response.ok) throw response;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error ${response.status}: ${response.statusText}` }));
+            throw new Error(errorData.message);
+        }
         const data = await response.json();
         const jsonText = data.choices[0].message.content.trim();
         return JSON.parse(jsonText) as BranchingQuestion[];
@@ -147,7 +181,10 @@ const getRefinementChoicesMistral = async (pathHistory: PathHistoryItem[], apiKe
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({ model: MISTRAL_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
-        if (!response.ok) throw response;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error ${response.status}: ${response.statusText}` }));
+            throw new Error(errorData.message);
+        }
         const data = await response.json();
         const jsonText = data.choices[0].message.content.trim();
         return JSON.parse(jsonText) as RefinementQuestion[];
@@ -168,13 +205,160 @@ const getScenarioJsonMistral = async (pathHistory: PathHistoryItem[], apiKey: st
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({ model: MISTRAL_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
-        if (!response.ok) throw response;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error ${response.status}: ${response.statusText}` }));
+            throw new Error(errorData.message);
+        }
         const data = await response.json();
         const jsonText = data.choices[0].message.content.trim();
         const parsedResult = JSON.parse(jsonText);
         return { summary: parsedResult.summary || "No summary provided.", scenarioJson: parsedResult.scenarioJson || "{}" };
     } catch (error) {
         throw new Error(`Mistral API Error during scenario generation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+// --- STABLE HORDE IMPLEMENTATIONS ---
+const getBranchingChoicesStableHorde = async (apiKey: string): Promise<BranchingQuestion[]> => {
+    const questionsString = FIXED_QUESTIONS.map((q, i) => `${i + 1}. ${q}`).join('\n');
+    const prompt = `You are a creative partner in a game world generator. You MUST respond with a single, valid JSON object that adheres to this schema: ${JSON.stringify(branchingChoicesSchema)}. Do not include any other text, explanations, or markdown formatting outside of the JSON object.
+    
+    Task: For each of the following 8 questions about a game world, generate exactly 8 pairs of antithetical (opposing) choices. The choices should be concise and potent (e.g., 'Ancient Magic' vs 'Cold Logic'). Do NOT include adjective openers or conversational phrasing. Return a single JSON array containing 8 objects. Each object must contain the original 'questionTemplate' and an 'options' array of the 8 pairs you generated.
+    
+    Questions:\n${questionsString}`;
+
+    try {
+        const response = await fetch(STABLE_HORDE_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 2048, temperature: 0.8 } })
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        const jsonText = data.generations[0].text.trim();
+        const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanedJson) as BranchingQuestion[];
+    } catch (error) {
+        throw new Error(`Stable Horde API Error during branching choices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+const getRefinementChoicesStableHorde = async (pathHistory: PathHistoryItem[], apiKey: string): Promise<RefinementQuestion[]> => {
+    const historyString = pathHistory.map(p => `(Q: ${p.question} -> A: ${p.choice})`).join(', ');
+    const prompt = `You are a creative partner in a game world generator. You MUST respond with a single, valid JSON object that adheres to this schema: ${JSON.stringify(refinementChoicesSchema)}. Do not include any other text, explanations, or markdown formatting outside of the JSON object.
+
+    Task: Based on the user's path so far: ${historyString}. Review these choices to understand the world being built. Now, generate 2 creative and fun follow-up questions to ask the user. These questions should probe for interesting details that would add unique flavor to the world. For each of the 2 questions, provide exactly 4 distinct, concise options for the user to choose from. Return a JSON array of 2 objects. Each object must contain 'questionTemplate' and an array of 4 string 'options'.`;
+    
+    try {
+        const response = await fetch(STABLE_HORDE_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 1024, temperature: 0.7 } })
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        const jsonText = data.generations[0].text.trim();
+        const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanedJson) as RefinementQuestion[];
+    } catch (error) {
+       throw new Error(`Stable Horde API Error during refinement choices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+
+const getScenarioJsonStableHorde = async (pathHistory: PathHistoryItem[], apiKey: string): Promise<Result> => {
+    const conversationHistory = pathHistory.map(item => `For the question "${item.question}", my choice was "${item.choice}"`).join('. ');
+    const prompt = `You are an expert world-builder. You MUST respond with a single, valid JSON object that adheres to this schema: ${JSON.stringify(scenarioSchema)}. Do not include any other text, explanations, or markdown formatting outside of the JSON object.
+
+    Task: Based on the user's completed 10-step journey: ${conversationHistory}. Your task is to creatively generate a nested JSON object with an idea for a game world scenario. This JSON will be used by an LLM, so it can have abbreviated information but must be well-structured. The JSON object must work in the details of the questions on the journey and additionally include information on: ciety, economy, aesthetics, atmosphere, tone, technology, geography, Non-mundane abilities or powers used by individuals, major conflicts, any other sections that make sense in the context, any other sections that make sense in the context, and key_locations (an array of at least 3 interesting and named places). If any information is missing from the original prompt, creatively invent details that fit the established path. Finally, provide a two-sentence, evocative summary of the world. Return the result in a JSON format matching the provided schema.`;
+
+    try {
+        const response = await fetch(STABLE_HORDE_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 2048, temperature: 0.8 } })
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        const jsonText = data.generations[0].text.trim();
+        const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsedResult = JSON.parse(cleanedJson);
+        return { summary: parsedResult.summary || "No summary provided.", scenarioJson: parsedResult.scenarioJson || "{}" };
+    } catch (error) {
+        throw new Error(`Stable Horde API Error during scenario generation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+// --- OPENAI IMPLEMENTATIONS ---
+const getBranchingChoicesOpenAI = async (apiKey: string): Promise<BranchingQuestion[]> => {
+    const questionsString = FIXED_QUESTIONS.map((q, i) => `${i + 1}. ${q}`).join('\n');
+
+    const systemPrompt = `You are a creative partner in a game world generator. You MUST respond with a valid JSON object that adheres to this schema: ${JSON.stringify(branchingChoicesSchema)}`;
+    const userPrompt = `For each of the following 8 questions about a game world, generate exactly 8 pairs of antithetical (opposing) choices. The choices should be concise and potent (e.g., 'Ancient Magic' vs 'Cold Logic'). Do NOT include adjective openers or conversational phrasing. Return a single JSON array containing 8 objects. Each object must contain the original 'questionTemplate' and an 'options' array of the 8 pairs you generated. Questions:\n${questionsString}`;
+
+    try {
+        const response = await fetch(OPENAI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData?.error?.message || response.statusText}`);
+        }
+        const data = await response.json();
+        const jsonText = data.choices[0].message.content.trim();
+        return JSON.parse(jsonText) as BranchingQuestion[];
+    } catch (error) {
+        throw new Error(`OpenAI API Error during branching choices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+const getRefinementChoicesOpenAI = async (pathHistory: PathHistoryItem[], apiKey: string): Promise<RefinementQuestion[]> => {
+    const historyString = pathHistory.map(p => `(Q: ${p.question} -> A: ${p.choice})`).join(', ');
+    const systemPrompt = `You are a creative partner in a game world generator. You MUST respond with a valid JSON object that adheres to this schema: ${JSON.stringify(refinementChoicesSchema)}`;
+    const userPrompt = `Based on the user's path so far: ${historyString}. Review these choices to understand the world being built. Now, generate 2 creative and fun follow-up questions to ask the user. These questions should probe for interesting details that would add unique flavor to the world. For each of the 2 questions, provide exactly 4 distinct, concise options for the user to choose from. Return a JSON array of 2 objects. Each object must contain 'questionTemplate' and an array of 4 string 'options'.`;
+    
+    try {
+        const response = await fetch(OPENAI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData?.error?.message || response.statusText}`);
+        }
+        const data = await response.json();
+        const jsonText = data.choices[0].message.content.trim();
+        return JSON.parse(jsonText) as RefinementQuestion[];
+    } catch (error) {
+       throw new Error(`OpenAI API Error during refinement choices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+
+const getScenarioJsonOpenAI = async (pathHistory: PathHistoryItem[], apiKey: string): Promise<Result> => {
+    const conversationHistory = pathHistory.map(item => `For the question "${item.question}", my choice was "${item.choice}"`).join('. ');
+    const systemPrompt = `You are an expert world-builder. You MUST respond with a valid JSON object that adheres to this schema: ${JSON.stringify(scenarioSchema)}`;
+    const userPrompt = `Based on the user's completed 10-step journey: ${conversationHistory}. Your task is to creatively generate a nested JSON object with an idea for a game world scenario. This JSON will be used by an LLM, so it can have abbreviated information but must be well-structured. The JSON object must work in the details of the questions on the journey and additionally include information on: ciety, economy, aesthetics, atmosphere, tone, technology, geography, Non-mundane abilities or powers used by individuals, major conflicts, any other sections that make sense in the context, any other sections that make sense in the context, and key_locations (an array of at least 3 interesting and named places). If any information is missing from the original prompt, creatively invent details that fit the established path. Finally, provide a two-sentence, evocative summary of the world. Return the result in a JSON format matching the provided schema.`;
+
+    try {
+        const response = await fetch(OPENAI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData?.error?.message || response.statusText}`);
+        }
+        const data = await response.json();
+        const jsonText = data.choices[0].message.content.trim();
+        const parsedResult = JSON.parse(jsonText);
+        return { summary: parsedResult.summary || "No summary provided.", scenarioJson: parsedResult.scenarioJson || "{}" };
+    } catch (error) {
+        throw new Error(`OpenAI API Error during scenario generation: ${error instanceof Error ? error.message : String(error)}`);
     }
 };
 
