@@ -7,7 +7,6 @@ interface SettingsMenuProps {
 
 const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
   const [mistralApiKey, setMistralApiKey] = useState('');
-  const [stablehordeApiKey, setStablehordeApiKey] = useState('');
   const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [openaiOrgId, setOpenaiOrgId] = useState('');
 
@@ -15,10 +14,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
     const savedMistralKey = localStorage.getItem('mistral_api_key');
     if (savedMistralKey) {
       setMistralApiKey(savedMistralKey);
-    }
-    const savedStablehordeKey = localStorage.getItem('stablehorde_api_key');
-    if (savedStablehordeKey) {
-      setStablehordeApiKey(savedStablehordeKey);
     }
     const savedOpenaiKey = localStorage.getItem('openai_api_key');
     if (savedOpenaiKey) {
@@ -35,12 +30,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
       localStorage.setItem('mistral_api_key', mistralApiKey.trim());
     } else {
       localStorage.removeItem('mistral_api_key');
-    }
-
-    if (stablehordeApiKey.trim()) {
-      localStorage.setItem('stablehorde_api_key', stablehordeApiKey.trim());
-    } else {
-      localStorage.removeItem('stablehorde_api_key');
     }
 
     if (openaiApiKey.trim()) {
@@ -76,17 +65,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
             value={mistralApiKey}
             onChange={(e) => setMistralApiKey(e.target.value)}
             placeholder="Enter your Mistral API key"
-            className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
-          />
-        </div>
-        <div className="mb-6">
-          <label htmlFor="stablehorde-key" className="block text-sm font-medium text-amber-400 mb-2">Stable Horde API Key</label>
-          <input
-            type="password"
-            id="stablehorde-key"
-            value={stablehordeApiKey}
-            onChange={(e) => setStablehordeApiKey(e.target.value)}
-            placeholder="Enter your Stable Horde key (e.g., '0000000000')"
             className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
           />
         </div>
