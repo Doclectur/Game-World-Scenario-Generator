@@ -60,7 +60,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, onOpenSettings }) =>
 
 
       <div className="absolute bottom-4 left-4 text-xs text-amber-700">
-        v3.4
+        v3.5
       </div>
     </div>
   );

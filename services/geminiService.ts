@@ -87,6 +87,7 @@ const MISTRAL_MODEL = "mistral-large-latest";
 
 // --- STABLE HORDE CONFIG ---
 const STABLE_HORDE_API_URL = "https://stablehorde.net/api/v2/generate/text";
+const STABLE_HORDE_CLIENT_AGENT = "GameWorldScenarioGenerator/3.4";
 
 // --- OPENAI CONFIG ---
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -230,10 +231,17 @@ const getBranchingChoicesStableHorde = async (apiKey: string): Promise<Branching
     try {
         const response = await fetch(STABLE_HORDE_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'apikey': apiKey,
+                'Client-Agent': STABLE_HORDE_CLIENT_AGENT
+            },
             body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 2048, temperature: 0.8 } })
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error: ${response.status} ${response.statusText}`}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         const jsonText = data.generations[0].text.trim();
         const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -252,10 +260,17 @@ const getRefinementChoicesStableHorde = async (pathHistory: PathHistoryItem[], a
     try {
         const response = await fetch(STABLE_HORDE_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'apikey': apiKey,
+                'Client-Agent': STABLE_HORDE_CLIENT_AGENT
+            },
             body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 1024, temperature: 0.7 } })
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error: ${response.status} ${response.statusText}`}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         const jsonText = data.generations[0].text.trim();
         const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -275,10 +290,17 @@ const getScenarioJsonStableHorde = async (pathHistory: PathHistoryItem[], apiKey
     try {
         const response = await fetch(STABLE_HORDE_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'apikey': apiKey,
+                'Client-Agent': STABLE_HORDE_CLIENT_AGENT
+            },
             body: JSON.stringify({ prompt, params: { max_context_length: 4096, max_length: 2048, temperature: 0.8 } })
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: `HTTP Error: ${response.status} ${response.statusText}`}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         const jsonText = data.generations[0].text.trim();
         const cleanedJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -290,6 +312,18 @@ const getScenarioJsonStableHorde = async (pathHistory: PathHistoryItem[], apiKey
 };
 
 // --- OPENAI IMPLEMENTATIONS ---
+const getOpenAIHeaders = (apiKey: string): { [key: string]: string } => {
+    const headers: { [key: string]: string } = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+    };
+    const orgId = typeof window !== 'undefined' ? localStorage.getItem('openai_organization_id') : null;
+    if (orgId) {
+        headers['OpenAI-Organization'] = orgId;
+    }
+    return headers;
+}
+
 const getBranchingChoicesOpenAI = async (apiKey: string): Promise<BranchingQuestion[]> => {
     const questionsString = FIXED_QUESTIONS.map((q, i) => `${i + 1}. ${q}`).join('\n');
 
@@ -299,7 +333,7 @@ const getBranchingChoicesOpenAI = async (apiKey: string): Promise<BranchingQuest
     try {
         const response = await fetch(OPENAI_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            headers: getOpenAIHeaders(apiKey),
             body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
         if (!response.ok) {
@@ -322,7 +356,7 @@ const getRefinementChoicesOpenAI = async (pathHistory: PathHistoryItem[], apiKey
     try {
         const response = await fetch(OPENAI_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            headers: getOpenAIHeaders(apiKey),
             body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
         if (!response.ok) {
@@ -346,7 +380,7 @@ const getScenarioJsonOpenAI = async (pathHistory: PathHistoryItem[], apiKey: str
     try {
         const response = await fetch(OPENAI_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            headers: getOpenAIHeaders(apiKey),
             body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ "role": "system", "content": systemPrompt }, { "role": "user", "content": userPrompt }], response_format: { "type": "json_object" } })
         });
         if (!response.ok) {

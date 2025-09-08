@@ -9,6 +9,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
   const [mistralApiKey, setMistralApiKey] = useState('');
   const [stablehordeApiKey, setStablehordeApiKey] = useState('');
   const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [openaiOrgId, setOpenaiOrgId] = useState('');
 
   useEffect(() => {
     const savedMistralKey = localStorage.getItem('mistral_api_key');
@@ -22,6 +23,10 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
     const savedOpenaiKey = localStorage.getItem('openai_api_key');
     if (savedOpenaiKey) {
       setOpenaiApiKey(savedOpenaiKey);
+    }
+    const savedOpenaiOrgId = localStorage.getItem('openai_organization_id');
+    if (savedOpenaiOrgId) {
+      setOpenaiOrgId(savedOpenaiOrgId);
     }
   }, []);
 
@@ -42,6 +47,12 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
       localStorage.setItem('openai_api_key', openaiApiKey.trim());
     } else {
       localStorage.removeItem('openai_api_key');
+    }
+
+    if (openaiOrgId.trim()) {
+      localStorage.setItem('openai_organization_id', openaiOrgId.trim());
+    } else {
+      localStorage.removeItem('openai_organization_id');
     }
     onClose();
   };
@@ -87,6 +98,17 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
             value={openaiApiKey}
             onChange={(e) => setOpenaiApiKey(e.target.value)}
             placeholder="Enter your OpenAI API key"
+            className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
+          />
+        </div>
+        <div className="mb-6">
+          <label htmlFor="openai-org" className="block text-sm font-medium text-amber-400 mb-2">OpenAI Organization ID (Optional)</label>
+          <input
+            type="text"
+            id="openai-org"
+            value={openaiOrgId}
+            onChange={(e) => setOpenaiOrgId(e.target.value)}
+            placeholder="Enter your Organization ID (e.g., org-...)"
             className="w-full px-3 py-2 bg-stone-900 border border-amber-800 rounded-md text-amber-100 focus:ring-amber-500 focus:border-amber-500"
           />
         </div>
